@@ -15,7 +15,9 @@ public class DonationAlerts : ModuleRules
                 "Core",
                 "HTTP",
                 "Json",
-                "JsonUtilities"
+                "JsonUtilities",
+                "UMG",
+                "SimpleWebBrowser"
             }
             );
 

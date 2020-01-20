@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Blueprint/UserWidget.h"
 #include "CoreMinimal.h"
 
 #include "DonationAlertsSettings.generated.h"
@@ -16,4 +17,8 @@ public:
 	/** Application ID f */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "DonationAlerts Settings")
 	FString AppId;
+
+	/** Custom class to handle OAuth */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "DonationAlerts Settings")
+	TSubclassOf<UUserWidget> OverrideBrowserWidgetClass;
 };
