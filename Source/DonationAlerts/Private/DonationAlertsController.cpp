@@ -9,9 +9,11 @@
 #include "DonationAlertsSave.h"
 #include "DonationAlertsSettings.h"
 
+#include "Engine/Engine.h"
 #include "Json.h"
 #include "JsonObjectConverter.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "UObject/ConstructorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "FDonationAlertsModule"
 
@@ -20,6 +22,8 @@ const FString UDonationAlertsController::DonationAlertsApiEndpoint(TEXT("https:/
 UDonationAlertsController::UDonationAlertsController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	static ConstructorHelpers::FClassFinder<UUserWidget> BrowserWidgetFinder(TEXT("/DonationAlerts/Browser/W_AuthBrowser.W_AuthBrowser_C"));
+	DefaultBrowserWidgetClass = BrowserWidgetFinder.Class;
 }
 
 void UDonationAlertsController::Tick(float DeltaTime)
@@ -38,15 +42,28 @@ void UDonationAlertsController::Initialize(const FString& InAppId)
 	UE_LOG(LogDonationAlerts, Log, TEXT("%s: Controller initialized: %s"), *VA_FUNC_LINE, *AppId);
 }
 
+void UDonationAlertsController::OpenAuthConsole(UUserWidget*& BrowserWidget)
+{
+	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
+
+	// Check for user browser widget override
+	auto BrowserWidgetClass = (Settings->OverrideBrowserWidgetClass) ? Settings->OverrideBrowserWidgetClass : DefaultBrowserWidgetClass;
+
+	auto MyBrowser = CreateWidget<UUserWidget>(GEngine->GameViewport->GetWorld(), BrowserWidgetClass);
+	MyBrowser->AddToViewport(MAX_int32);
+
+	BrowserWidget = MyBrowser;
+}
+
 void UDonationAlertsController::LoadData()
 {
 	auto SavedData = UDonationAlertsSave::Load();
+	AccessToken = SavedData.AccessToken;
 }
 
 void UDonationAlertsController::SaveData()
 {
-	// @TODO Cache AccessToken here
-	//UDonationAlertsSave::Save(FDonationAlertsSaveData( /** AccessToken */ ));
+	UDonationAlertsSave::Save(FDonationAlertsSaveData(AccessToken));
 }
 
 TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)
@@ -90,6 +107,11 @@ FString UDonationAlertsController::SerializeJson(const TSharedPtr<FJsonObject> D
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonContent);
 	FJsonSerializer::Serialize(DataJson.ToSharedRef(), Writer);
 	return JsonContent;
+}
+
+FString UDonationAlertsController::GetAuthUrl() const
+{
+	return TEXT("https://www.donationalerts.com/oauth/authorize");
 }
 
 #undef LOCTEXT_NAMESPACE

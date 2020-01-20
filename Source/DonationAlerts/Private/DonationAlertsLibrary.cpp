@@ -27,3 +27,11 @@ UDonationAlertsSettings* UDonationAlertsLibrary::GetDonationAlertsSettings(UObje
 {
 	return FDonationAlertsModule::Get().GetSettings();
 }
+
+void UDonationAlertsLibrary::AuthenicateUser(UObject* WorldContextObject, UUserWidget*& BrowserWidget)
+{
+	if (auto PluginController = UDonationAlertsLibrary::GetDonationAlertsController(WorldContextObject))
+	{
+		PluginController->OpenAuthConsole(BrowserWidget);
+	}
+}

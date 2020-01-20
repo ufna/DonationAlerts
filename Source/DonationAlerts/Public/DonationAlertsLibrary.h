@@ -24,4 +24,8 @@ public:
 	/** Direct access to DonationAlerts settings */
 	UFUNCTION(BlueprintPure, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
 	static UDonationAlertsSettings* GetDonationAlertsSettings(UObject* WorldContextObject);
+
+	/** User will be prompted by the service to authorize or deny the application access to their account */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
+	static void AuthenicateUser(UObject* WorldContextObject, UUserWidget*& BrowserWidget);
 };

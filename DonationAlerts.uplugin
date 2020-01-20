@@ -16,6 +16,19 @@
 	"Installed": false,
 	"Modules": [
 		{
+			"Name": "SimpleWebBrowser",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms": [
+				"Win32",
+				"Win64",
+				"Mac",
+				"IOS",
+				"Android",
+				"Linux"
+			]
+		},
+		{
 			"Name": "DonationAlerts",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",

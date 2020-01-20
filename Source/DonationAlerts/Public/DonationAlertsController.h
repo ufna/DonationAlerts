@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Blueprint/UserWidget.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Http.h"
 #include "Tickable.h"
@@ -40,6 +41,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void Initialize(const FString& InAppId);
 
+	/** */
+	void OpenAuthConsole(UUserWidget*& BrowserWidget);
+
 protected:
 	/** Load save game and extract data */
 	void LoadData();
@@ -56,7 +60,20 @@ protected:
 protected:
 	static const FString DonationAlertsApiEndpoint;
 
-private:
+public:
+	/** Get auth url to be opened in browser */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
+	FString GetAuthUrl() const;
+
+protected:
 	/** Cached AppId */
 	FString AppId;
+
+	/** Cached AccessToken */
+	FString AccessToken;
+
+protected:
+	/** Browser widget class to be used when no custom override is used */
+	UPROPERTY()
+	TSubclassOf<UUserWidget> DefaultBrowserWidgetClass;
 };
