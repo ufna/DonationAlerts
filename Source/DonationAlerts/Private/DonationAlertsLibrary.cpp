@@ -35,3 +35,11 @@ void UDonationAlertsLibrary::AuthenicateUser(UObject* WorldContextObject, UUserW
 		PluginController->OpenAuthConsole(BrowserWidget);
 	}
 }
+
+void UDonationAlertsLibrary::CustomAlert(UObject* WorldContextObject, const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+{
+	if (auto PluginController = UDonationAlertsLibrary::GetDonationAlertsController(WorldContextObject))
+	{
+		PluginController->SendCustomAlert(ExternalId, Header, Message, ImageUrl, SoundUrl);
+	}
+}

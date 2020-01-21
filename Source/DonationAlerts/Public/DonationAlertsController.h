@@ -48,6 +48,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void SetAuthorizationCode(const FString& InAuthorizationCode);
 
+	/** custom_alert API caller */
+	void SendCustomAlert(const FString& ExternalId, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
+
+protected:
+	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+	bool HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
+
 protected:
 	/** Load save game and extract data */
 	void LoadData();
@@ -57,9 +64,6 @@ protected:
 
 	/** Create http request and add API meta */
 	TSharedRef<IHttpRequest> CreateHttpRequest(const FString& Url, const FString& BodyContent = TEXT(""), ERequestVerb Verb = ERequestVerb::POST);
-
-	/** Serialize json object into string */
-	FString SerializeJson(const TSharedPtr<FJsonObject> DataJson) const;
 
 protected:
 	static const FString DonationAlertsApiEndpoint;

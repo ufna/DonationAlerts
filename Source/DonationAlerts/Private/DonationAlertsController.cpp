@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "FDonationAlertsModule"
 
-const FString UDonationAlertsController::DonationAlertsApiEndpoint(TEXT("https://www.donationalerts.com"));
+const FString UDonationAlertsController::DonationAlertsApiEndpoint(TEXT("https://www.donationalerts.com/api/v1"));
 
 UDonationAlertsController::UDonationAlertsController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -60,6 +60,92 @@ void UDonationAlertsController::SetAuthorizationCode(const FString& InAuthorizat
 	AuthorizationCode = InAuthorizationCode;
 }
 
+void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+{
+	if (ExternalId.IsEmpty())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: ExternalId is required"), *VA_FUNC_LINE);
+		return;
+	}
+
+	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%s"), *DonationAlertsApiEndpoint, *ExternalId);
+
+	if (!Header.IsEmpty())
+		Url += FString::Printf(TEXT("&header=%s"), *Header);
+	if (!Message.IsEmpty())
+		Url += FString::Printf(TEXT("&message=%s"), *Message);
+	if (!ImageUrl.IsEmpty())
+		Url += FString::Printf(TEXT("&image_url=%s"), *ImageUrl);
+	if (!SoundUrl.IsEmpty())
+		Url += FString::Printf(TEXT("&sound_url=%s"), *SoundUrl);
+
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete);
+	HttpRequest->ProcessRequest();
+}
+
+void UDonationAlertsController::SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, FOnRequestError()))
+	{
+		return;
+	}
+
+	FString ResponseStr = HttpResponse->GetContentAsString();
+	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
+}
+
+bool UDonationAlertsController::HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
+{
+	FString ErrorStr;
+	int32 StatusCode = 204;
+	FString ResponseStr = TEXT("invalid");
+
+	if (bSucceeded && HttpResponse.IsValid())
+	{
+		ResponseStr = HttpResponse->GetContentAsString();
+
+		if (!EHttpResponseCodes::IsOk(HttpResponse->GetResponseCode()))
+		{
+			StatusCode = HttpResponse->GetResponseCode();
+			ErrorStr = FString::Printf(TEXT("Invalid response. code=%d error=%s"), HttpResponse->GetResponseCode(), *ResponseStr);
+
+			// Example: {"message" : "Unauthenticated."}
+			TSharedPtr<FJsonObject> JsonObject;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(*ResponseStr);
+			if (FJsonSerializer::Deserialize(Reader, JsonObject))
+			{
+				static const FString ErrorFieldName = TEXT("message");
+				if (JsonObject->HasTypedField<EJson::String>(ErrorFieldName))
+				{
+					ErrorStr = JsonObject->GetStringField(ErrorFieldName);
+				}
+				else
+				{
+					ErrorStr = FString::Printf(TEXT("Can't deserialize error json: no field '%s' found"), *ErrorFieldName);
+				}
+			}
+			else
+			{
+				ErrorStr = TEXT("Can't deserialize error json");
+			}
+		}
+	}
+	else
+	{
+		ErrorStr = TEXT("No response");
+	}
+
+	if (!ErrorStr.IsEmpty())
+	{
+		UE_LOG(LogDonationAlerts, Warning, TEXT("%s: request failed (%s): %s"), *VA_FUNC_LINE, *ErrorStr, *ResponseStr);
+		ErrorCallback.ExecuteIfBound(StatusCode, ErrorStr);
+		return true;
+	}
+
+	return false;
+}
+
 void UDonationAlertsController::LoadData()
 {
 	auto SavedData = UDonationAlertsSave::Load();
@@ -100,18 +186,14 @@ TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FStr
 		HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 		HttpRequest->SetContentAsString(BodyContent);
 	}
+	else
+	{
+		HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/x-www-form-urlencoded"));
+	}
 
 	// @TODO Setup AccessToken
 
 	return HttpRequest;
-}
-
-FString UDonationAlertsController::SerializeJson(const TSharedPtr<FJsonObject> DataJson) const
-{
-	FString JsonContent;
-	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonContent);
-	FJsonSerializer::Serialize(DataJson.ToSharedRef(), Writer);
-	return JsonContent;
 }
 
 FString UDonationAlertsController::GetAuthUrl() const
