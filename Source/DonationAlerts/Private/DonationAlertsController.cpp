@@ -55,22 +55,20 @@ void UDonationAlertsController::OpenAuthConsole(UUserWidget*& BrowserWidget)
 	BrowserWidget = MyBrowser;
 }
 
-void UDonationAlertsController::SetAccessToken(const FString& InAccessToken)
+void UDonationAlertsController::SetAuthorizationCode(const FString& InAuthorizationCode)
 {
-	AccessToken = InAccessToken;
-
-	SaveData();
+	AuthorizationCode = InAuthorizationCode;
 }
 
 void UDonationAlertsController::LoadData()
 {
 	auto SavedData = UDonationAlertsSave::Load();
-	AccessToken = SavedData.AccessToken;
+	//AccessToken = SavedData.AccessToken;
 }
 
 void UDonationAlertsController::SaveData()
 {
-	UDonationAlertsSave::Save(FDonationAlertsSaveData(AccessToken));
+	//UDonationAlertsSave::Save(FDonationAlertsSaveData(AccessToken));
 }
 
 TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)

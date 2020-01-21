@@ -44,9 +44,9 @@ public:
 	/** Opens browser to authenicate user using OAuth */
 	void OpenAuthConsole(UUserWidget*& BrowserWidget);
 
-	/** Sets and cache AccessToken from OAuth */
+	/** Sets AuthorizationCode from OAuth */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
-	void SetAccessToken(const FString& InAccessToken);
+	void SetAuthorizationCode(const FString& InAuthorizationCode);
 
 protected:
 	/** Load save game and extract data */
@@ -73,8 +73,8 @@ protected:
 	/** Cached AppId */
 	FString AppId;
 
-	/** Cached AccessToken */
-	FString AccessToken;
+	/** Cached AuthorizationCode */
+	FString AuthorizationCode;
 
 protected:
 	/** Browser widget class to be used when no custom override is used */
