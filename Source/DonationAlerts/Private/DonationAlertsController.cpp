@@ -55,6 +55,13 @@ void UDonationAlertsController::OpenAuthConsole(UUserWidget*& BrowserWidget)
 	BrowserWidget = MyBrowser;
 }
 
+void UDonationAlertsController::SetAccessToken(const FString& InAccessToken)
+{
+	AccessToken = InAccessToken;
+
+	SaveData();
+}
+
 void UDonationAlertsController::LoadData()
 {
 	auto SavedData = UDonationAlertsSave::Load();
@@ -111,7 +118,8 @@ FString UDonationAlertsController::SerializeJson(const TSharedPtr<FJsonObject> D
 
 FString UDonationAlertsController::GetAuthUrl() const
 {
-	return TEXT("https://www.donationalerts.com/oauth/authorize");
+	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
+	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=code&scope=oauth-user-show"), *Settings->AppId);
 }
 
 #undef LOCTEXT_NAMESPACE

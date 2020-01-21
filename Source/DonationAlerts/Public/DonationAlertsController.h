@@ -41,8 +41,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void Initialize(const FString& InAppId);
 
-	/** */
+	/** Opens browser to authenicate user using OAuth */
 	void OpenAuthConsole(UUserWidget*& BrowserWidget);
+
+	/** Sets and cache AccessToken from OAuth */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
+	void SetAccessToken(const FString& InAccessToken);
 
 protected:
 	/** Load save game and extract data */
