@@ -36,11 +36,11 @@ void UDonationAlertsLibrary::AuthenicateUser(UObject* WorldContextObject, UUserW
 	}
 }
 
-void UDonationAlertsLibrary::FetchAccessToken(UObject* WorldContextObject, const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback)
+void UDonationAlertsLibrary::FetchAccessToken(UObject* WorldContextObject, const FString& AuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback)
 {
 	if (auto PluginController = UDonationAlertsLibrary::GetDonationAlertsController(WorldContextObject))
 	{
-		PluginController->FetchAccessToken(InAuthorizationCode, SuccessCallback, ErrorCallback);
+		PluginController->FetchAccessToken(AuthorizationCode, SuccessCallback, ErrorCallback);
 	}
 }
 

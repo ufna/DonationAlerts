@@ -29,9 +29,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
 	static void AuthenicateUser(UObject* WorldContextObject, UUserWidget*& BrowserWidget);
 
-	/** */
+	/** Exchange AuthorizationCode to OAuth AccessToken */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
-	static void FetchAccessToken(UObject* WorldContextObject, const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
+	static void FetchAccessToken(UObject* WorldContextObject, const FString& AuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
 
 	/** Send custom alert to DA server */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "ErrorCallback"))

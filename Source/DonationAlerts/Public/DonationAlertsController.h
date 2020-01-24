@@ -64,7 +64,7 @@ public:
 	/** Opens browser to authenicate user using OAuth */
 	void OpenAuthConsole(UUserWidget*& BrowserWidget);
 
-	/** */
+	/** Exchange AuthorizationCode to OAuth AccessToken */
 	void FetchAccessToken(const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
 
 	/** Sets AuthorizationCode from DA */
