@@ -13,6 +13,25 @@
 class FJsonObject;
 struct FGuid;
 
+USTRUCT(BlueprintType)
+struct DONATIONALERTS_API FDonationAlertsAuthToken
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "AuthToken")
+	FString access_token;
+
+	UPROPERTY(BlueprintReadWrite, Category = "AuthToken")
+	int64 expires_in;
+
+	UPROPERTY(BlueprintReadWrite, Category = "AuthToken")
+	FString refresh_token;
+
+public:
+	FDonationAlertsAuthToken()
+		: expires_in(0){};
+};
+
 /** Verb used by the request */
 UENUM(BlueprintType)
 enum class ERequestVerb : uint8
@@ -44,9 +63,13 @@ public:
 	/** Opens browser to authenicate user using OAuth */
 	void OpenAuthConsole(UUserWidget*& BrowserWidget);
 
-	/** Sets AuthorizationCode from OAuth */
+	/** Sets AuthorizationCode from DA */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void SetAuthorizationCode(const FString& InAuthorizationCode);
+
+	/** Sets AccessToken from OAuth */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
+	void SetAuthToken(const FDonationAlertsAuthToken& InAuthToken);
 
 	/** custom_alert API caller */
 	void SendCustomAlert(const FString& ExternalId, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
@@ -64,6 +87,9 @@ protected:
 
 	/** Create http request and add API meta */
 	TSharedRef<IHttpRequest> CreateHttpRequest(const FString& Url, const FString& BodyContent = TEXT(""), ERequestVerb Verb = ERequestVerb::POST);
+	
+	/** Setup auth with bearer token */
+	void SetupAuth(TSharedRef<IHttpRequest> HttpRequest);
 
 protected:
 	static const FString DonationAlertsApiEndpoint;
@@ -79,6 +105,9 @@ protected:
 
 	/** Cached AuthorizationCode */
 	FString AuthorizationCode;
+
+	/** Cached AuthToken */
+	FDonationAlertsAuthToken AuthToken;
 
 protected:
 	/** Browser widget class to be used when no custom override is used */

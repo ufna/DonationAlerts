@@ -60,6 +60,11 @@ void UDonationAlertsController::SetAuthorizationCode(const FString& InAuthorizat
 	AuthorizationCode = InAuthorizationCode;
 }
 
+void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InAuthToken)
+{
+	AuthToken = InAuthToken;
+}
+
 void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
 {
 	if (ExternalId.IsEmpty())
@@ -80,6 +85,7 @@ void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const
 		Url += FString::Printf(TEXT("&sound_url=%s"), *SoundUrl);
 
 	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	SetupAuth(HttpRequest);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete);
 	HttpRequest->ProcessRequest();
 }
@@ -191,9 +197,12 @@ TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FStr
 		HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/x-www-form-urlencoded"));
 	}
 
-	// @TODO Setup AccessToken
-
 	return HttpRequest;
+}
+
+void UDonationAlertsController::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
+{
+	HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *AuthToken.access_token));
 }
 
 FString UDonationAlertsController::GetAuthUrl() const
