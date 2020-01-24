@@ -55,6 +55,24 @@ void UDonationAlertsController::OpenAuthConsole(UUserWidget*& BrowserWidget)
 	BrowserWidget = MyBrowser;
 }
 
+void UDonationAlertsController::FetchAccessToken(const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback)
+{
+	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
+
+	if (Settings->AuthTokenExchangeURI.IsEmpty())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Please set AuthTokenExchangeURI at DA plugin settings"), *VA_FUNC_LINE);
+		ErrorCallback.ExecuteIfBound(-1, TEXT("Please set AuthTokenExchangeURI at DA plugin settings"));
+		return;
+	}
+
+	FString Url = FString::Printf(TEXT("%s?code=%s"), *Settings->AuthTokenExchangeURI, *InAuthorizationCode);
+
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::FetchAccessToken_HttpRequestComplete, SuccessCallback, ErrorCallback);
+	HttpRequest->ProcessRequest();
+}
+
 void UDonationAlertsController::SetAuthorizationCode(const FString& InAuthorizationCode)
 {
 	AuthorizationCode = InAuthorizationCode;
@@ -65,7 +83,7 @@ void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InA
 	AuthToken = InAuthToken;
 }
 
-void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl, const FOnRequestError& ErrorCallback)
 {
 	if (ExternalId.IsEmpty())
 	{
@@ -86,13 +104,42 @@ void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const
 
 	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
 	SetupAuth(HttpRequest);
-	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete);
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete, ErrorCallback);
 	HttpRequest->ProcessRequest();
 }
 
-void UDonationAlertsController::SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+void UDonationAlertsController::FetchAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback)
 {
-	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, FOnRequestError()))
+	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, ErrorCallback))
+	{
+		return;
+	}
+
+	FString ResponseStr = HttpResponse->GetContentAsString();
+	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(*HttpResponse->GetContentAsString());
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't deserialize server response"), *VA_FUNC_LINE);
+		ErrorCallback.ExecuteIfBound(HttpResponse->GetResponseCode(), TEXT("Can't deserialize server response"));
+		return;
+	}
+
+	if (!FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), FDonationAlertsAuthToken::StaticStruct(), &AuthToken))
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert server response to struct"), *VA_FUNC_LINE);
+		ErrorCallback.ExecuteIfBound(HttpResponse->GetResponseCode(), TEXT("Can't convert server response to struct"));
+		return;
+	}
+
+	SuccessCallback.ExecuteIfBound(AuthToken);
+}
+
+void UDonationAlertsController::SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
+{
+	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, ErrorCallback))
 	{
 		return;
 	}
@@ -155,12 +202,12 @@ bool UDonationAlertsController::HandleRequestError(FHttpRequestPtr HttpRequest, 
 void UDonationAlertsController::LoadData()
 {
 	auto SavedData = UDonationAlertsSave::Load();
-	//AccessToken = SavedData.AccessToken;
+	AuthToken = SavedData.AuthToken;
 }
 
 void UDonationAlertsController::SaveData()
 {
-	//UDonationAlertsSave::Save(FDonationAlertsSaveData(AccessToken));
+	UDonationAlertsSave::Save(FDonationAlertsSaveData(AuthToken));
 }
 
 TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)
@@ -209,6 +256,11 @@ FString UDonationAlertsController::GetAuthUrl() const
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
 	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=code&scope=oauth-user-show"), *Settings->AppId);
+}
+
+FDonationAlertsAuthToken UDonationAlertsController::GetAuthToken() const
+{
+	return AuthToken;
 }
 
 #undef LOCTEXT_NAMESPACE

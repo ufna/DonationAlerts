@@ -40,6 +40,7 @@ enum class ERequestVerb : uint8
 	POST
 };
 
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFetchTokenSuccess, const FDonationAlertsAuthToken&, AuthToken);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRequestError, int32, StatusCode, const FString&, ErrorMessage);
 
 UCLASS()
@@ -63,6 +64,9 @@ public:
 	/** Opens browser to authenicate user using OAuth */
 	void OpenAuthConsole(UUserWidget*& BrowserWidget);
 
+	/** */
+	void FetchAccessToken(const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
+
 	/** Sets AuthorizationCode from DA */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void SetAuthorizationCode(const FString& InAuthorizationCode);
@@ -72,10 +76,11 @@ public:
 	void SetAuthToken(const FDonationAlertsAuthToken& InAuthToken);
 
 	/** custom_alert API caller */
-	void SendCustomAlert(const FString& ExternalId, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
+	void SendCustomAlert(const FString& ExternalId, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""), const FOnRequestError& ErrorCallback = FOnRequestError());
 
 protected:
-	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+	void FetchAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback);
+	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
 	bool HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
 
 protected:
@@ -87,7 +92,7 @@ protected:
 
 	/** Create http request and add API meta */
 	TSharedRef<IHttpRequest> CreateHttpRequest(const FString& Url, const FString& BodyContent = TEXT(""), ERequestVerb Verb = ERequestVerb::POST);
-	
+
 	/** Setup auth with bearer token */
 	void SetupAuth(TSharedRef<IHttpRequest> HttpRequest);
 
@@ -98,6 +103,10 @@ public:
 	/** Get auth url to be opened in browser */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	FString GetAuthUrl() const;
+
+	/** Get cached auth token */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
+	FDonationAlertsAuthToken GetAuthToken() const;
 
 protected:
 	/** Cached AppId */

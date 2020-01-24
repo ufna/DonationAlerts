@@ -36,10 +36,18 @@ void UDonationAlertsLibrary::AuthenicateUser(UObject* WorldContextObject, UUserW
 	}
 }
 
-void UDonationAlertsLibrary::CustomAlert(UObject* WorldContextObject, const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+void UDonationAlertsLibrary::FetchAccessToken(UObject* WorldContextObject, const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback)
 {
 	if (auto PluginController = UDonationAlertsLibrary::GetDonationAlertsController(WorldContextObject))
 	{
-		PluginController->SendCustomAlert(ExternalId, Header, Message, ImageUrl, SoundUrl);
+		PluginController->FetchAccessToken(InAuthorizationCode, SuccessCallback, ErrorCallback);
+	}
+}
+
+void UDonationAlertsLibrary::CustomAlert(UObject* WorldContextObject, const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl, const FOnRequestError& ErrorCallback)
+{
+	if (auto PluginController = UDonationAlertsLibrary::GetDonationAlertsController(WorldContextObject))
+	{
+		PluginController->SendCustomAlert(ExternalId, Header, Message, ImageUrl, SoundUrl, ErrorCallback);
 	}
 }

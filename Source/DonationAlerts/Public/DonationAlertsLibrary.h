@@ -29,7 +29,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
 	static void AuthenicateUser(UObject* WorldContextObject, UUserWidget*& BrowserWidget);
 
+	/** */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
+	static void FetchAccessToken(UObject* WorldContextObject, const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
+
 	/** Send custom alert to DA server */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
-	void CustomAlert(UObject* WorldContextObject, const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl);
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "ErrorCallback"))
+	void CustomAlert(UObject* WorldContextObject, const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl, const FOnRequestError& ErrorCallback);
 };

@@ -5,6 +5,7 @@
 
 #include "GameFramework/SaveGame.h"
 
+#include "DonationAlertsController.h"
 #include "DonationAlertsDefines.h"
 
 #include "DonationAlertsSave.generated.h"
@@ -16,12 +17,12 @@ struct DONATIONALERTS_API FDonationAlertsSaveData
 
 	/** Last used access token to cache auth data */
 	UPROPERTY()
-	FString AccessToken;
+	FDonationAlertsAuthToken AuthToken;
 
 	FDonationAlertsSaveData(){};
 
-	FDonationAlertsSaveData(FString InAccessToken)
-		: AccessToken(InAccessToken){};
+	FDonationAlertsSaveData(FDonationAlertsAuthToken InAuthToken)
+		: AuthToken(InAuthToken){};
 };
 
 UCLASS()
