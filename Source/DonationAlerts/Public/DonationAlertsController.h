@@ -75,10 +75,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller", meta = (AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
 	void RefreshAccessToken(const FDonationAlertsAuthToken& InAuthToken, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
 
-	/** Sets AuthorizationCode from DA */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
-	void SetAuthorizationCode(const FString& InAuthorizationCode);
-
 	/** Sets AccessToken from OAuth */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void SetAuthToken(const FDonationAlertsAuthToken& InAuthToken);
@@ -121,9 +117,6 @@ public:
 protected:
 	/** Cached AppId */
 	FString AppId;
-
-	/** Cached AuthorizationCode */
-	FString AuthorizationCode;
 
 	/** Cached AuthToken */
 	FDonationAlertsAuthToken AuthToken;

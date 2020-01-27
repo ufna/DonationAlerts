@@ -95,11 +95,6 @@ void UDonationAlertsController::RefreshAccessToken(const FDonationAlertsAuthToke
 	HttpRequest->ProcessRequest();
 }
 
-void UDonationAlertsController::SetAuthorizationCode(const FString& InAuthorizationCode)
-{
-	AuthorizationCode = InAuthorizationCode;
-}
-
 void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InAuthToken)
 {
 	AuthToken = InAuthToken;
