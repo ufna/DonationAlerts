@@ -67,7 +67,7 @@ void UDonationAlertsController::FetchAccessToken(const FString& InAuthorizationC
 
 	FString Url = FString::Printf(TEXT("%s?code=%s"), *Settings->AuthTokenExchangeURI, *InAuthorizationCode);
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::FetchAccessToken_HttpRequestComplete, SuccessCallback, ErrorCallback);
 	HttpRequest->ProcessRequest();
 }
@@ -90,7 +90,7 @@ void UDonationAlertsController::RefreshAccessToken(const FDonationAlertsAuthToke
 
 	FString Url = FString::Printf(TEXT("%s?refresh_token=%s"), *Settings->AuthTokenExchangeURI, *InAuthToken.refresh_token);
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::RefreshAccessToken_HttpRequestComplete, SuccessCallback, ErrorCallback);
 	HttpRequest->ProcessRequest();
 }
@@ -109,17 +109,18 @@ void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const
 	}
 
 	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%s"), *DonationAlertsApiEndpoint, *ExternalId);
+	FString AlertParams;
 
 	if (!Header.IsEmpty())
-		Url += FString::Printf(TEXT("&header=%s"), *Header);
+		AlertParams += FString::Printf(TEXT("&header=%s"), *Header);
 	if (!Message.IsEmpty())
-		Url += FString::Printf(TEXT("&message=%s"), *Message);
+		AlertParams += FString::Printf(TEXT("&message=%s"), *Message);
 	if (!ImageUrl.IsEmpty())
-		Url += FString::Printf(TEXT("&image_url=%s"), *ImageUrl);
+		AlertParams += FString::Printf(TEXT("&image_url=%s"), *ImageUrl);
 	if (!SoundUrl.IsEmpty())
-		Url += FString::Printf(TEXT("&sound_url=%s"), *SoundUrl);
+		AlertParams += FString::Printf(TEXT("&sound_url=%s"), *SoundUrl);
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url + FGenericPlatformHttp::UrlEncode(AlertParams));
 	SetupAuth(HttpRequest);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete, ErrorCallback);
 	HttpRequest->ProcessRequest();
