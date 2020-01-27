@@ -30,6 +30,8 @@ struct DONATIONALERTS_API FDonationAlertsAuthToken
 public:
 	FDonationAlertsAuthToken()
 		: expires_in(0){};
+
+	bool IsValid() const { return !access_token.IsEmpty() && !refresh_token.IsEmpty(); }
 };
 
 /** Verb used by the request */
@@ -61,11 +63,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void Initialize(const FString& InAppId);
 
-	/** Opens browser to authenicate user using OAuth */
-	void OpenAuthConsole(UUserWidget*& BrowserWidget);
+	/** User will be prompted by the service to authorize or deny the application access to their account */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
+	void AuthenicateUser(UUserWidget*& BrowserWidget);
 
 	/** Exchange AuthorizationCode to OAuth AccessToken */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller", meta = (AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
 	void FetchAccessToken(const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
+
+	/** Try to refresh AccessToken */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller", meta = (AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
+	void RefreshAccessToken(const FDonationAlertsAuthToken& InAuthToken, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
 
 	/** Sets AuthorizationCode from DA */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
@@ -75,11 +83,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void SetAuthToken(const FDonationAlertsAuthToken& InAuthToken);
 
-	/** custom_alert API caller */
-	void SendCustomAlert(const FString& ExternalId, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""), const FOnRequestError& ErrorCallback = FOnRequestError());
+	/** Send custom alert to DA server */
+	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (AutoCreateRefTerm = "ErrorCallback"))
+	void SendCustomAlert(const FString& ExternalId, const FOnRequestError& ErrorCallback, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
 
 protected:
 	void FetchAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback);
+	void RefreshAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback);
 	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
 	bool HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
 

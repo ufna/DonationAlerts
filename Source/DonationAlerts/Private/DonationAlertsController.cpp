@@ -42,7 +42,7 @@ void UDonationAlertsController::Initialize(const FString& InAppId)
 	UE_LOG(LogDonationAlerts, Log, TEXT("%s: Controller initialized: %s"), *VA_FUNC_LINE, *AppId);
 }
 
-void UDonationAlertsController::OpenAuthConsole(UUserWidget*& BrowserWidget)
+void UDonationAlertsController::AuthenicateUser(UUserWidget*& BrowserWidget)
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
 
@@ -58,7 +58,6 @@ void UDonationAlertsController::OpenAuthConsole(UUserWidget*& BrowserWidget)
 void UDonationAlertsController::FetchAccessToken(const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback)
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
-
 	if (Settings->AuthTokenExchangeURI.IsEmpty())
 	{
 		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Please set AuthTokenExchangeURI at DA plugin settings"), *VA_FUNC_LINE);
@@ -73,6 +72,29 @@ void UDonationAlertsController::FetchAccessToken(const FString& InAuthorizationC
 	HttpRequest->ProcessRequest();
 }
 
+void UDonationAlertsController::RefreshAccessToken(const FDonationAlertsAuthToken& InAuthToken, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback)
+{
+	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
+	if (Settings->AuthTokenExchangeURI.IsEmpty())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Please set AuthTokenExchangeURI at DA plugin settings"), *VA_FUNC_LINE);
+		ErrorCallback.ExecuteIfBound(-1, TEXT("Please set AuthTokenExchangeURI at DA plugin settings"));
+		return;
+	}
+
+	if (!InAuthToken.IsValid())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't refresh AccessToken: provided AuthToken is not valid"), *VA_FUNC_LINE);
+		return;
+	}
+
+	FString Url = FString::Printf(TEXT("%s?refresh_token=%s"), *Settings->AuthTokenExchangeURI, *InAuthToken.refresh_token);
+
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(FGenericPlatformHttp::UrlEncode(Url));
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::RefreshAccessToken_HttpRequestComplete, SuccessCallback, ErrorCallback);
+	HttpRequest->ProcessRequest();
+}
+
 void UDonationAlertsController::SetAuthorizationCode(const FString& InAuthorizationCode)
 {
 	AuthorizationCode = InAuthorizationCode;
@@ -83,7 +105,7 @@ void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InA
 	AuthToken = InAuthToken;
 }
 
-void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl, const FOnRequestError& ErrorCallback)
+void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
 {
 	if (ExternalId.IsEmpty())
 	{
@@ -134,6 +156,37 @@ void UDonationAlertsController::FetchAccessToken_HttpRequestComplete(FHttpReques
 		return;
 	}
 
+	SetAuthToken(AuthToken);
+	SuccessCallback.ExecuteIfBound(AuthToken);
+}
+
+void UDonationAlertsController::RefreshAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback)
+{
+	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, ErrorCallback))
+	{
+		return;
+	}
+
+	FString ResponseStr = HttpResponse->GetContentAsString();
+	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(*HttpResponse->GetContentAsString());
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't deserialize server response"), *VA_FUNC_LINE);
+		ErrorCallback.ExecuteIfBound(HttpResponse->GetResponseCode(), TEXT("Can't deserialize server response"));
+		return;
+	}
+
+	if (!FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), FDonationAlertsAuthToken::StaticStruct(), &AuthToken))
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert server response to struct"), *VA_FUNC_LINE);
+		ErrorCallback.ExecuteIfBound(HttpResponse->GetResponseCode(), TEXT("Can't convert server response to struct"));
+		return;
+	}
+
+	SetAuthToken(AuthToken);
 	SuccessCallback.ExecuteIfBound(AuthToken);
 }
 

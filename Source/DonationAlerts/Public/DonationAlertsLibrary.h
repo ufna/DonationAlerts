@@ -24,16 +24,4 @@ public:
 	/** Direct access to DonationAlerts settings */
 	UFUNCTION(BlueprintPure, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
 	static UDonationAlertsSettings* GetDonationAlertsSettings(UObject* WorldContextObject);
-
-	/** User will be prompted by the service to authorize or deny the application access to their account */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
-	static void AuthenicateUser(UObject* WorldContextObject, UUserWidget*& BrowserWidget);
-
-	/** Exchange AuthorizationCode to OAuth AccessToken */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
-	static void FetchAccessToken(UObject* WorldContextObject, const FString& AuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
-
-	/** Send custom alert to DA server */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "ErrorCallback"))
-	void CustomAlert(UObject* WorldContextObject, const FString& ExternalId, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl, const FOnRequestError& ErrorCallback);
 };
