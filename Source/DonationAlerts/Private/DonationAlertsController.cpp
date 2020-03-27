@@ -304,7 +304,7 @@ void UDonationAlertsController::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
 FString UDonationAlertsController::GetAuthUrl() const
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
-	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=code&scope=oauth-user-show"), *Settings->AppId);
+	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=code&scope=oauth-user-show,oauth-custom_alert-store"), *Settings->AppId);
 }
 
 FDonationAlertsAuthToken UDonationAlertsController::GetAuthToken() const
