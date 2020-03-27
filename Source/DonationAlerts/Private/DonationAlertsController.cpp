@@ -100,15 +100,9 @@ void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InA
 	AuthToken = InAuthToken;
 }
 
-void UDonationAlertsController::SendCustomAlert(const FString& ExternalId, const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+void UDonationAlertsController::SendCustomAlert(const int32 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
 {
-	if (ExternalId.IsEmpty())
-	{
-		UE_LOG(LogDonationAlerts, Error, TEXT("%s: ExternalId is required"), *VA_FUNC_LINE);
-		return;
-	}
-
-	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%s"), *DonationAlertsApiEndpoint, *ExternalId);
+	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%d"), *DonationAlertsApiEndpoint, ExternalId);
 	FString AlertParams;
 
 	if (!Header.IsEmpty())
@@ -304,7 +298,9 @@ void UDonationAlertsController::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
 FString UDonationAlertsController::GetAuthUrl() const
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
-	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=code&scope=oauth-user-show,oauth-custom_alert-store"), *Settings->AppId);
+	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=code&scope=%s"),
+		*Settings->AppId,
+		*FGenericPlatformHttp::UrlEncode(TEXT("oauth-user-show oauth-custom_alert-store")));
 }
 
 FDonationAlertsAuthToken UDonationAlertsController::GetAuthToken() const

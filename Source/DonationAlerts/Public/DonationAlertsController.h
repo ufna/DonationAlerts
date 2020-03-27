@@ -81,7 +81,7 @@ public:
 
 	/** Send custom alert to DA server */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (AutoCreateRefTerm = "ErrorCallback"))
-	void SendCustomAlert(const FString& ExternalId, const FOnRequestError& ErrorCallback, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
+	void SendCustomAlert(const int32 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
 
 protected:
 	void FetchAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback);
