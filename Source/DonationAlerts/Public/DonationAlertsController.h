@@ -67,14 +67,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void AuthenicateUser(UUserWidget*& BrowserWidget);
 
-	/** Exchange AuthorizationCode to OAuth AccessToken */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller", meta = (AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
-	void FetchAccessToken(const FString& InAuthorizationCode, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
-
-	/** Try to refresh AccessToken */
-	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller", meta = (AutoCreateRefTerm = "SuccessCallback, ErrorCallback"))
-	void RefreshAccessToken(const FDonationAlertsAuthToken& InAuthToken, const FOnFetchTokenSuccess& SuccessCallback, const FOnRequestError& ErrorCallback);
-
 	/** Sets AccessToken from OAuth */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void SetAuthToken(const FDonationAlertsAuthToken& InAuthToken);
@@ -84,8 +76,6 @@ public:
 	void SendCustomAlert(const int64 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
 
 protected:
-	void FetchAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback);
-	void RefreshAccessToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnFetchTokenSuccess SuccessCallback, FOnRequestError ErrorCallback);
 	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
 	bool HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
 
