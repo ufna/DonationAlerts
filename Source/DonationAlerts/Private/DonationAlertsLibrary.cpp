@@ -27,3 +27,8 @@ UDonationAlertsSettings* UDonationAlertsLibrary::GetDonationAlertsSettings(UObje
 {
 	return FDonationAlertsModule::Get().GetSettings();
 }
+
+int64 UDonationAlertsLibrary::DateTimeToUnixTime(const FDateTime& DateTime)
+{
+	return DateTime.ToUnixTimestamp();
+}

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Misc/DateTime.h"
 
 #include "DonationAlertsController.h"
 
@@ -24,4 +25,8 @@ public:
 	/** Direct access to DonationAlerts settings */
 	UFUNCTION(BlueprintPure, Category = "DonationAlerts", meta = (WorldContext = "WorldContextObject"))
 	static UDonationAlertsSettings* GetDonationAlertsSettings(UObject* WorldContextObject);
+
+	/** Helper function to get Unix Timestamp from FDateTime param */
+	UFUNCTION(BlueprintPure, Category = "DonationAlerts")
+	static int64 DateTimeToUnixTime(const FDateTime& DateTime);
 };
