@@ -63,18 +63,18 @@ void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InA
 void UDonationAlertsController::SendCustomAlert(const int64 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
 {
 	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%d"), *DonationAlertsApiEndpoint, ExternalId);
+
 	FString AlertParams;
-
 	if (!Header.IsEmpty())
-		AlertParams += FString::Printf(TEXT("&header=%s"), *Header);
+		AlertParams += FString::Printf(TEXT("&header=%s"), *FGenericPlatformHttp::UrlEncode(Header));
 	if (!Message.IsEmpty())
-		AlertParams += FString::Printf(TEXT("&message=%s"), *Message);
+		AlertParams += FString::Printf(TEXT("&message=%s"), *FGenericPlatformHttp::UrlEncode(Message));
 	if (!ImageUrl.IsEmpty())
-		AlertParams += FString::Printf(TEXT("&image_url=%s"), *ImageUrl);
+		AlertParams += FString::Printf(TEXT("&image_url=%s"), *FGenericPlatformHttp::UrlEncode(ImageUrl));
 	if (!SoundUrl.IsEmpty())
-		AlertParams += FString::Printf(TEXT("&sound_url=%s"), *SoundUrl);
+		AlertParams += FString::Printf(TEXT("&sound_url=%s"), *FGenericPlatformHttp::UrlEncode(SoundUrl));
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url + FGenericPlatformHttp::UrlEncode(AlertParams));
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url + AlertParams);
 	SetupAuth(HttpRequest);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete, ErrorCallback);
 	HttpRequest->ProcessRequest();
