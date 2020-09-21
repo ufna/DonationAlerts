@@ -60,9 +60,9 @@ void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InA
 	AuthToken = InAuthToken;
 }
 
-void UDonationAlertsController::SendCustomAlert(const int64 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+void UDonationAlertsController::SendCustomAlert(const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
 {
-	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%d"), *DonationAlertsApiEndpoint, ExternalId);
+	FString Url = FString::Printf(TEXT("%s/custom_alert?dummy=1"), *DonationAlertsApiEndpoint);
 
 	FString AlertParams;
 	if (!Header.IsEmpty())
