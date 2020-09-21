@@ -6,6 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Http.h"
+#include "SocketSubsystem.h"
+#include "Interfaces/IPv4/IPv4Address.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Tickable.h"
 
 #include "DonationAlertsController.generated.h"
@@ -115,4 +118,8 @@ protected:
 	/** Browser widget class to be used when no custom override is used */
 	UPROPERTY()
 	TSubclassOf<UUserWidget> DefaultBrowserWidgetClass;
+
+protected:
+	FSocket* ConnectionSocket;
+	FIPv4Endpoint RemoteAddressForConnection;
 };
