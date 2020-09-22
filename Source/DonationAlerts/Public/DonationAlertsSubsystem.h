@@ -6,9 +6,11 @@
 #include "Blueprint/UserWidget.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Http.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "Subsystems/SubsystemCollection.h"
 #include "Tickable.h"
 
-#include "DonationAlertsController.generated.h"
+#include "DonationAlertsSubsystem.generated.h"
 
 class FJsonObject;
 struct FGuid;
@@ -46,19 +48,18 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFetchTokenSuccess, const FDonationAlertsAut
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRequestError, int32, StatusCode, const FString&, ErrorMessage);
 
 UCLASS()
-class DONATIONALERTS_API UDonationAlertsController : public UObject, public FTickableGameObject
+class DONATIONALERTS_API UDonationAlertsSubsystem : public UGameInstanceSubsystem
 {
-	GENERATED_UCLASS_BODY()
-
-protected:
-	// FTickableGameObject begin
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override { return true; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual TStatId GetStatId() const override { return TStatId(); }
-	// FTickableGameObject end
+	GENERATED_BODY()
 
 public:
+	UDonationAlertsSubsystem();
+
+	// Begin USubsystem
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	// End USubsystem
+
 	/** Initialize controller with provided data (used to override project settings) */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void Initialize(const FString& InAppId);

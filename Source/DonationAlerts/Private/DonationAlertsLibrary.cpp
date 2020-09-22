@@ -13,16 +13,6 @@ UDonationAlertsLibrary::UDonationAlertsLibrary(const FObjectInitializer& ObjectI
 {
 }
 
-UDonationAlertsController* UDonationAlertsLibrary::GetDonationAlertsController(UObject* WorldContextObject)
-{
-	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
-	{
-		return FDonationAlertsModule::Get().GetController(World);
-	}
-
-	return nullptr;
-}
-
 UDonationAlertsSettings* UDonationAlertsLibrary::GetDonationAlertsSettings(UObject* WorldContextObject)
 {
 	return FDonationAlertsModule::Get().GetSettings();
