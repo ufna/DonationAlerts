@@ -386,7 +386,7 @@ void UDonationAlertsSubsystem::OpenCentrifugoSocket()
 	});
 
 	WebSocket->OnMessage().AddWeakLambda(this, [this](const FString& Message) -> void {
-		UE_LOG(LogDonationAlerts, Warning, TEXT("%s: Socket received: %s"), *VA_FUNC_LINE, *Message);
+		UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Socket received: %s"), *VA_FUNC_LINE, *Message);
 
 		ParseCentrifugoMessage(Message);
 	});
@@ -433,7 +433,7 @@ void UDonationAlertsSubsystem::ParseCentrifugoMessage(const FString& InMessage)
 						auto SecondLayerDataJson = DataJson->GetObjectField(DataFieldName);
 
 						FDonationAlertsEvent DAEvent;
-						if (!FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), FDonationAlertsEvent::StaticStruct(), &DAEvent))
+						if (!FJsonObjectConverter::JsonObjectToUStruct(SecondLayerDataJson.ToSharedRef(), FDonationAlertsEvent::StaticStruct(), &DAEvent))
 						{
 							UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert data to struct"), *VA_FUNC_LINE);
 							return;
