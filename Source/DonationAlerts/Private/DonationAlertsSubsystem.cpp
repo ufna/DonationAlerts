@@ -10,20 +10,36 @@
 #include "DonationAlertsSettings.h"
 
 #include "Engine/Engine.h"
+#include "IWebSocket.h"
 #include "Json.h"
 #include "JsonObjectConverter.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "UObject/ConstructorHelpers.h"
+#include "WebSocketsModule.h"
 
 #define LOCTEXT_NAMESPACE "FDonationAlertsModule"
 
+#ifndef VA_TEST
+#define VA_TEST 0
+#endif
+
+#if VA_TEST
+const FString UDonationAlertsSubsystem::DonationAlertsEndpoint(TEXT("https://www.trifonov.my.cloud.devmail.ru"));
+const FString UDonationAlertsSubsystem::DonationAlertsApiEndpoint(TEXT("https://www.trifonov.my.cloud.devmail.ru/api/v1"));
+const FString UDonationAlertsSubsystem::DonationAlertsCentrifugoEndpoint(TEXT("wss://centrifugo.trifonov.my.cloud.devmail.ru/connection/websocket"));
+#else
+const FString UDonationAlertsSubsystem::DonationAlertsEndpoint(TEXT("https://www.donationalerts.com"));
 const FString UDonationAlertsSubsystem::DonationAlertsApiEndpoint(TEXT("https://www.donationalerts.com/api/v1"));
+const FString UDonationAlertsSubsystem::DonationAlertsCentrifugoEndpoint(TEXT("wss://centrifugo.donationalerts.com/connection/websocket"));
+#endif
 
 UDonationAlertsSubsystem::UDonationAlertsSubsystem()
 	: UGameInstanceSubsystem()
 {
 	static ConstructorHelpers::FClassFinder<UUserWidget> BrowserWidgetFinder(TEXT("/DonationAlerts/Browser/W_AuthBrowser.W_AuthBrowser_C"));
 	DefaultBrowserWidgetClass = BrowserWidgetFinder.Class;
+
+	MessageId = 1;
 }
 
 void UDonationAlertsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -39,7 +55,11 @@ void UDonationAlertsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UDonationAlertsSubsystem::Deinitialize()
 {
-	// Do nothing for now
+	if (WebSocket.IsValid())
+	{
+		WebSocket->Close();
+	}
+
 	Super::Deinitialize();
 }
 
@@ -70,6 +90,9 @@ void UDonationAlertsSubsystem::AuthenicateUser(UUserWidget*& BrowserWidget)
 void UDonationAlertsSubsystem::SetAuthToken(const FDonationAlertsAuthToken& InAuthToken)
 {
 	AuthToken = InAuthToken;
+
+	// Automatically fetch user profile each time we've got the auth token
+	FetchUserProfile();
 }
 
 void UDonationAlertsSubsystem::SendCustomAlert(const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
@@ -92,6 +115,27 @@ void UDonationAlertsSubsystem::SendCustomAlert(const FOnRequestError& ErrorCallb
 	HttpRequest->ProcessRequest();
 }
 
+void UDonationAlertsSubsystem::FetchUserProfile()
+{
+	FString Url = FString::Printf(TEXT("%s/user/oauth"), *DonationAlertsApiEndpoint);
+
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url, FString(), ERequestVerb::GET);
+	SetupAuth(HttpRequest);
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsSubsystem::FetchUserProfile_HttpRequestComplete);
+	HttpRequest->ProcessRequest();
+}
+
+void UDonationAlertsSubsystem::SubscribeCentrifugoChannel(const FString& InChannel)
+{
+	FString Url = FString::Printf(TEXT("%s/centrifuge/subscribe"), *DonationAlertsApiEndpoint);
+	FString PostContent = FString::Printf(TEXT("{\"channels\":[\"%s\"], \"client\":\"%s\"}"), *InChannel, *ClientId);
+
+	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url, PostContent);
+	SetupAuth(HttpRequest);
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsSubsystem::SubscribeCentrifugoChannel_HttpRequestComplete);
+	HttpRequest->ProcessRequest();
+}
+
 void UDonationAlertsSubsystem::SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
 {
 	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, ErrorCallback))
@@ -101,6 +145,104 @@ void UDonationAlertsSubsystem::SendCustomAlert_HttpRequestComplete(FHttpRequestP
 
 	FString ResponseStr = HttpResponse->GetContentAsString();
 	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
+}
+
+void UDonationAlertsSubsystem::FetchUserProfile_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, FOnRequestError()))
+	{
+		return;
+	}
+
+	FString ResponseStr = HttpResponse->GetContentAsString();
+	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
+
+	FString ErrorStr;
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(*ResponseStr);
+	if (FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		static const FString DataFieldName = TEXT("data");
+		if (JsonObject->HasTypedField<EJson::Object>(DataFieldName))
+		{
+			UserProfile.id = JsonObject->GetObjectField(DataFieldName)->GetNumberField(TEXT("id"));
+			UserProfile.socket_connection_token = JsonObject->GetObjectField(DataFieldName)->GetStringField(TEXT("socket_connection_token"));
+
+			OpenCentrifugoSocket();
+
+			if (UserProfile.socket_connection_token.IsEmpty())
+			{
+				ErrorStr = TEXT("Invalid user profile data");
+			}
+		}
+		else
+		{
+			ErrorStr = FString::Printf(TEXT("Can't deserialize error json: no field '%s' found"), *DataFieldName);
+		}
+	}
+	else
+	{
+		ErrorStr = TEXT("Can't deserialize json");
+	}
+
+	if (!ErrorStr.IsEmpty())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: %s"), *VA_FUNC_LINE, *ErrorStr);
+	}
+}
+
+void UDonationAlertsSubsystem::SubscribeCentrifugoChannel_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, FOnRequestError()))
+	{
+		return;
+	}
+
+	FString ResponseStr = HttpResponse->GetContentAsString();
+	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
+
+	FString ErrorStr;
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(*ResponseStr);
+	if (FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		static const FString DataFieldName = TEXT("channels");
+		if (JsonObject->HasTypedField<EJson::Array>(DataFieldName))
+		{
+			auto ChannelsArray = JsonObject->GetArrayField(DataFieldName);
+
+			bool bGotToken = false;
+			if (ChannelsArray.Num() > 0)
+			{
+				auto ChannelObject = ChannelsArray[0]->AsObject();
+				if (ChannelObject.IsValid())
+				{
+					ConnectDonationChannel(ChannelObject->GetStringField("channel"), ChannelObject->GetStringField("token"));
+					bGotToken = true;
+				}
+			}
+
+			if (!bGotToken)
+			{
+				ErrorStr = TEXT("Invalid channel data");
+			}
+		}
+		else
+		{
+			ErrorStr = FString::Printf(TEXT("Can't deserialize error json: no field '%s' found"), *DataFieldName);
+		}
+	}
+	else
+	{
+		ErrorStr = TEXT("Can't deserialize json");
+	}
+
+	if (!ErrorStr.IsEmpty())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: %s"), *VA_FUNC_LINE, *ErrorStr);
+	}
 }
 
 bool UDonationAlertsSubsystem::HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
@@ -210,15 +352,127 @@ void UDonationAlertsSubsystem::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
 FString UDonationAlertsSubsystem::GetAuthUrl() const
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
-	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=token&scope=%s&client_secret=%s"),
+	return FString::Printf(TEXT("%s/oauth/authorize?client_id=%s&response_type=token&scope=%s&client_secret=%s"),
+		*DonationAlertsEndpoint,
 		*Settings->AppId,
-		*FGenericPlatformHttp::UrlEncode(TEXT("oauth-user-show oauth-custom_alert-store")),
+		*FGenericPlatformHttp::UrlEncode(TEXT("oauth-user-show oauth-donation-subscribe oauth-donation-index oauth-custom_alert-store")),
 		*Settings->AppClientSecret);
 }
 
 FDonationAlertsAuthToken UDonationAlertsSubsystem::GetAuthToken() const
 {
 	return AuthToken;
+}
+
+void UDonationAlertsSubsystem::OpenCentrifugoSocket()
+{
+	const FString ServerProtocol = TEXT("wss");
+	TMap<FString, FString> UpgradeHeaders;
+
+	WebSocket = FWebSocketsModule::Get().CreateWebSocket(DonationAlertsCentrifugoEndpoint, ServerProtocol, UpgradeHeaders);
+
+	WebSocket->OnConnected().AddWeakLambda(this, [this]() -> void {
+		UE_LOG(LogDonationAlerts, Warning, TEXT("%s: Socket connected"), *VA_FUNC_LINE);
+
+		SendToSocket(FString::Printf(TEXT("{\"params\":{\"token\":\"%s\"},\"id\":%d}"), *UserProfile.socket_connection_token, MessageId));
+	});
+
+	WebSocket->OnConnectionError().AddLambda([](const FString& Error) -> void {
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Socket error: %s"), *VA_FUNC_LINE, *Error);
+	});
+
+	WebSocket->OnClosed().AddLambda([](int32 StatusCode, const FString& Reason, bool bWasClean) -> void {
+		UE_LOG(LogDonationAlerts, Log, TEXT("%s: Socket closed (%d): %s"), *VA_FUNC_LINE, StatusCode, *Reason);
+	});
+
+	WebSocket->OnMessage().AddWeakLambda(this, [this](const FString& Message) -> void {
+		UE_LOG(LogDonationAlerts, Warning, TEXT("%s: Socket received: %s"), *VA_FUNC_LINE, *Message);
+
+		ParseCentrifugoMessage(Message);
+	});
+
+	WebSocket->OnMessageSent().AddLambda([](const FString& Message) -> void {
+		UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Socket sent: %s"), *VA_FUNC_LINE, *Message);
+	});
+
+	WebSocket->Connect();
+}
+
+void UDonationAlertsSubsystem::ParseCentrifugoMessage(const FString& InMessage)
+{
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(*InMessage);
+	if (FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		static const FString ResultFieldName = TEXT("result");
+		if (JsonObject->HasTypedField<EJson::Object>(ResultFieldName))
+		{
+			TSharedPtr<FJsonObject> ResultJson = JsonObject->GetObjectField(ResultFieldName);
+
+			static const FString ClientFieldName = TEXT("client");
+			static const FString ChannelFieldName = TEXT("channel");
+			static const FString DataFieldName = TEXT("data");
+
+			// Check client auth
+			if (ResultJson->HasTypedField<EJson::String>(ClientFieldName))
+			{
+				ClientId = ResultJson->GetStringField(ClientFieldName);
+
+				// We've connected to server, so now we should join a channel
+				FString UserChannel = FString::Printf(TEXT("$alerts:donation_%d"), UserProfile.id);
+				SubscribeCentrifugoChannel(UserChannel);
+			}
+			else if (ResultJson->HasTypedField<EJson::String>(ChannelFieldName))
+			{
+				// We're assuming that only one channel can be ever used for now (donations)
+				if (auto DataJson = ResultJson->GetObjectField(DataFieldName))
+				{
+					// Now get result.data.data
+					if (DataJson->HasTypedField<EJson::Object>(DataFieldName))
+					{
+						auto SecondLayerDataJson = DataJson->GetObjectField(DataFieldName);
+
+						FDonationAlertsEvent DAEvent;
+						if (!FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), FDonationAlertsEvent::StaticStruct(), &DAEvent))
+						{
+							UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert data to struct"), *VA_FUNC_LINE);
+							return;
+						}
+
+						DonationAlertsEventHappened.Broadcast(DAEvent);
+						DonationAlertsEventHappenedStatic.Broadcast(DAEvent);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UDonationAlertsSubsystem::ConnectDonationChannel(const FString& InChannel, const FString& InToken)
+{
+	TSharedPtr<FJsonObject> RequestParamsJson = MakeShareable(new FJsonObject());
+	RequestParamsJson->SetStringField(TEXT("channel"), InChannel);
+	RequestParamsJson->SetStringField(TEXT("token"), InToken);
+
+	FString ParamsContent;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ParamsContent);
+	FJsonSerializer::Serialize(RequestParamsJson.ToSharedRef(), Writer);
+
+	SendToSocket(FString::Printf(TEXT("{\"params\":%s,\"id\":%d,\"method\":1}"), *ParamsContent, MessageId));
+}
+
+void UDonationAlertsSubsystem::SendToSocket(const FString& InMessage)
+{
+	if (!WebSocket.IsValid() || !WebSocket->IsConnected())
+	{
+		UE_LOG(LogDonationAlerts, Error, TEXT("%s: Socket is not connected. Trying to send: %s"), *VA_FUNC_LINE, *InMessage);
+		return;
+	}
+
+	WebSocket->Send(InMessage);
+
+	// Each send increments message count
+	MessageId++;
 }
 
 #undef LOCTEXT_NAMESPACE

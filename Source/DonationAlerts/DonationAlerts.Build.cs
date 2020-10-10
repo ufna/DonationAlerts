@@ -14,7 +14,7 @@ public class DonationAlerts : ModuleRules
             {
                 "Core",
                 "HTTP",
-                "Sockets",
+                "WebSockets",
                 "Networking",
                 "Json",
                 "JsonUtilities",
