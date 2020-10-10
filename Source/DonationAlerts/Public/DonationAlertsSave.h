@@ -16,7 +16,7 @@ struct DONATIONALERTS_API FDonationAlertsSaveData
 	GENERATED_USTRUCT_BODY()
 
 	/** Last used access token to cache auth data */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "SaveData")
 	FDonationAlertsAuthToken AuthToken;
 
 	FDonationAlertsSaveData(){};
