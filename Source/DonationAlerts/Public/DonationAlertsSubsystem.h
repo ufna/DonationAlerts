@@ -6,12 +6,14 @@
 #include "Blueprint/UserWidget.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Http.h"
-#include "SocketSubsystem.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "SocketSubsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "Subsystems/SubsystemCollection.h"
 #include "Tickable.h"
 
-#include "DonationAlertsController.generated.h"
+#include "DonationAlertsSubsystem.generated.h"
 
 class FJsonObject;
 struct FGuid;
@@ -49,19 +51,18 @@ DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFetchTokenSuccess, const FDonationAlertsAut
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRequestError, int32, StatusCode, const FString&, ErrorMessage);
 
 UCLASS()
-class DONATIONALERTS_API UDonationAlertsController : public UObject, public FTickableGameObject
+class DONATIONALERTS_API UDonationAlertsSubsystem : public UGameInstanceSubsystem
 {
-	GENERATED_UCLASS_BODY()
-
-protected:
-	// FTickableGameObject begin
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override { return true; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual TStatId GetStatId() const override { return TStatId(); }
-	// FTickableGameObject end
+	GENERATED_BODY()
 
 public:
+	UDonationAlertsSubsystem();
+
+	// Begin USubsystem
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	// End USubsystem
+
 	/** Initialize controller with provided data (used to override project settings) */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts|Controller")
 	void Initialize(const FString& InAppId);
@@ -76,7 +77,7 @@ public:
 
 	/** Send custom alert to DA server */
 	UFUNCTION(BlueprintCallable, Category = "DonationAlerts", meta = (AutoCreateRefTerm = "ErrorCallback"))
-	void SendCustomAlert(const int64 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
+	void SendCustomAlert(const FOnRequestError& ErrorCallback, const FString& Header = TEXT(""), const FString& Message = TEXT(""), const FString& ImageUrl = TEXT(""), const FString& SoundUrl = TEXT(""));
 
 protected:
 	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);

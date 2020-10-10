@@ -1,7 +1,7 @@
 // Copyright 2019 My.com B.V. All Rights Reserved.
 // @author Vladimir Alyamkin <ufna@ufna.ru>
 
-#include "DonationAlertsController.h"
+#include "DonationAlertsSubsystem.h"
 
 #include "DonationAlerts.h"
 #include "DonationAlertsDefines.h"
@@ -17,21 +17,33 @@
 
 #define LOCTEXT_NAMESPACE "FDonationAlertsModule"
 
-const FString UDonationAlertsController::DonationAlertsApiEndpoint(TEXT("https://www.donationalerts.com/api/v1"));
+const FString UDonationAlertsSubsystem::DonationAlertsApiEndpoint(TEXT("https://www.donationalerts.com/api/v1"));
 
-UDonationAlertsController::UDonationAlertsController(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+UDonationAlertsSubsystem::UDonationAlertsSubsystem()
+	: UGameInstanceSubsystem()
 {
 	static ConstructorHelpers::FClassFinder<UUserWidget> BrowserWidgetFinder(TEXT("/DonationAlerts/Browser/W_AuthBrowser.W_AuthBrowser_C"));
 	DefaultBrowserWidgetClass = BrowserWidgetFinder.Class;
 }
 
-void UDonationAlertsController::Tick(float DeltaTime)
+void UDonationAlertsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	// Do nothing for now
+	Super::Initialize(Collection);
+
+	// Initialize subsystem with project identifier provided by user
+	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
+	Initialize(Settings->AppId);
+
+	UE_LOG(LogDonationAlerts, Log, TEXT("%s: LogDonationAlerts subsystem initialized"), *VA_FUNC_LINE);
 }
 
-void UDonationAlertsController::Initialize(const FString& InAppId)
+void UDonationAlertsSubsystem::Deinitialize()
+{
+	// Do nothing for now
+	Super::Deinitialize();
+}
+
+void UDonationAlertsSubsystem::Initialize(const FString& InAppId)
 {
 	// Pre-cache initialization data
 	AppId = InAppId;
@@ -42,7 +54,7 @@ void UDonationAlertsController::Initialize(const FString& InAppId)
 	UE_LOG(LogDonationAlerts, Log, TEXT("%s: Controller initialized: %s"), *VA_FUNC_LINE, *AppId);
 }
 
-void UDonationAlertsController::AuthenicateUser(UUserWidget*& BrowserWidget)
+void UDonationAlertsSubsystem::AuthenicateUser(UUserWidget*& BrowserWidget)
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
 
@@ -55,14 +67,14 @@ void UDonationAlertsController::AuthenicateUser(UUserWidget*& BrowserWidget)
 	BrowserWidget = MyBrowser;
 }
 
-void UDonationAlertsController::SetAuthToken(const FDonationAlertsAuthToken& InAuthToken)
+void UDonationAlertsSubsystem::SetAuthToken(const FDonationAlertsAuthToken& InAuthToken)
 {
 	AuthToken = InAuthToken;
 }
 
-void UDonationAlertsController::SendCustomAlert(const int64 ExternalId, const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
+void UDonationAlertsSubsystem::SendCustomAlert(const FOnRequestError& ErrorCallback, const FString& Header, const FString& Message, const FString& ImageUrl, const FString& SoundUrl)
 {
-	FString Url = FString::Printf(TEXT("%s/custom_alert?external_id=%d"), *DonationAlertsApiEndpoint, ExternalId);
+	FString Url = FString::Printf(TEXT("%s/custom_alert?dummy=1"), *DonationAlertsApiEndpoint);
 
 	FString AlertParams;
 	if (!Header.IsEmpty())
@@ -76,11 +88,11 @@ void UDonationAlertsController::SendCustomAlert(const int64 ExternalId, const FO
 
 	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url + AlertParams);
 	SetupAuth(HttpRequest);
-	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsController::SendCustomAlert_HttpRequestComplete, ErrorCallback);
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsSubsystem::SendCustomAlert_HttpRequestComplete, ErrorCallback);
 	HttpRequest->ProcessRequest();
 }
 
-void UDonationAlertsController::SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
+void UDonationAlertsSubsystem::SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
 {
 	if (HandleRequestError(HttpRequest, HttpResponse, bSucceeded, ErrorCallback))
 	{
@@ -91,7 +103,7 @@ void UDonationAlertsController::SendCustomAlert_HttpRequestComplete(FHttpRequest
 	UE_LOG(LogDonationAlerts, Verbose, TEXT("%s: Response: %s"), *VA_FUNC_LINE, *ResponseStr);
 }
 
-bool UDonationAlertsController::HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
+bool UDonationAlertsSubsystem::HandleRequestError(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback)
 {
 	FString ErrorStr;
 	int32 StatusCode = 204;
@@ -142,18 +154,18 @@ bool UDonationAlertsController::HandleRequestError(FHttpRequestPtr HttpRequest, 
 	return false;
 }
 
-void UDonationAlertsController::LoadData()
+void UDonationAlertsSubsystem::LoadData()
 {
 	auto SavedData = UDonationAlertsSave::Load();
 	AuthToken = SavedData.AuthToken;
 }
 
-void UDonationAlertsController::SaveData()
+void UDonationAlertsSubsystem::SaveData()
 {
 	UDonationAlertsSave::Save(FDonationAlertsSaveData(AuthToken));
 }
 
-TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)
+TSharedRef<IHttpRequest> UDonationAlertsSubsystem::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)
 {
 	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
 
@@ -190,12 +202,12 @@ TSharedRef<IHttpRequest> UDonationAlertsController::CreateHttpRequest(const FStr
 	return HttpRequest;
 }
 
-void UDonationAlertsController::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
+void UDonationAlertsSubsystem::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
 {
 	HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *AuthToken.access_token));
 }
 
-FString UDonationAlertsController::GetAuthUrl() const
+FString UDonationAlertsSubsystem::GetAuthUrl() const
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
 	return FString::Printf(TEXT("https://www.donationalerts.com/oauth/authorize?client_id=%s&response_type=token&scope=%s&client_secret=%s"),
@@ -204,7 +216,7 @@ FString UDonationAlertsController::GetAuthUrl() const
 		*Settings->AppClientSecret);
 }
 
-FDonationAlertsAuthToken UDonationAlertsController::GetAuthToken() const
+FDonationAlertsAuthToken UDonationAlertsSubsystem::GetAuthToken() const
 {
 	return AuthToken;
 }

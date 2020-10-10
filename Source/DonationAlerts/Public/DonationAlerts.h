@@ -7,7 +7,6 @@
 #include "Modules/ModuleManager.h"
 
 class UDonationAlertsSettings;
-class UDonationAlertsController;
 
 class FDonationAlertsModule : public IModuleInterface
 {
@@ -40,13 +39,7 @@ public:
 	/** Getter for internal settings object to support runtime configuration changes */
 	UDonationAlertsSettings* GetSettings() const;
 
-	/** Get global data controller */
-	UDonationAlertsController* GetController(UWorld* World) const;
-
 private:
 	/** Module settings */
 	UDonationAlertsSettings* DonationAlertsSettings;
-
-	/** Data controllers (one for each World we have) */
-	TMap<UWorld*, UDonationAlertsController*> DonationAlertsControllers;
 };

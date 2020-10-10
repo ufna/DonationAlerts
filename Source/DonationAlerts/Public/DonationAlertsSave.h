@@ -5,8 +5,8 @@
 
 #include "GameFramework/SaveGame.h"
 
-#include "DonationAlertsController.h"
 #include "DonationAlertsDefines.h"
+#include "DonationAlertsSubsystem.h"
 
 #include "DonationAlertsSave.generated.h"
 
