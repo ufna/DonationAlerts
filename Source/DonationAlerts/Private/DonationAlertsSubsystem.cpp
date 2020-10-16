@@ -19,19 +19,9 @@
 
 #define LOCTEXT_NAMESPACE "FDonationAlertsModule"
 
-#ifndef VA_TEST
-#define VA_TEST 0
-#endif
-
-#if VA_TEST
-const FString UDonationAlertsSubsystem::DonationAlertsEndpoint(TEXT("https://www.trifonov.my.cloud.devmail.ru"));
-const FString UDonationAlertsSubsystem::DonationAlertsApiEndpoint(TEXT("https://www.trifonov.my.cloud.devmail.ru/api/v1"));
-const FString UDonationAlertsSubsystem::DonationAlertsCentrifugoEndpoint(TEXT("wss://centrifugo.trifonov.my.cloud.devmail.ru/connection/websocket"));
-#else
 const FString UDonationAlertsSubsystem::DonationAlertsEndpoint(TEXT("https://www.donationalerts.com"));
 const FString UDonationAlertsSubsystem::DonationAlertsApiEndpoint(TEXT("https://www.donationalerts.com/api/v1"));
 const FString UDonationAlertsSubsystem::DonationAlertsCentrifugoEndpoint(TEXT("wss://centrifugo.donationalerts.com/connection/websocket"));
-#endif
 
 UDonationAlertsSubsystem::UDonationAlertsSubsystem()
 	: UGameInstanceSubsystem()
@@ -125,10 +115,22 @@ void UDonationAlertsSubsystem::FetchUserProfile()
 	HttpRequest->ProcessRequest();
 }
 
-void UDonationAlertsSubsystem::SubscribeCentrifugoChannel(const FString& InChannel)
+void UDonationAlertsSubsystem::SubscribeCentrifugoChannel(const TArray<FString>& InChannels)
 {
+	FString ChannelsStr;
+	for (auto& Channel : InChannels)
+	{
+		ChannelsStr += TEXT("\"") + Channel + TEXT("\",");
+	}
+
+	// Remove last quote
+	if (!ChannelsStr.IsEmpty())
+	{
+		ChannelsStr.LeftChopInline(1);
+	}
+
 	FString Url = FString::Printf(TEXT("%s/centrifuge/subscribe"), *DonationAlertsApiEndpoint);
-	FString PostContent = FString::Printf(TEXT("{\"channels\":[\"%s\"], \"client\":\"%s\"}"), *InChannel, *ClientId);
+	FString PostContent = FString::Printf(TEXT("{\"channels\":[%s], \"client\":\"%s\"}"), *ChannelsStr, *ClientId);
 
 	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url, PostContent);
 	SetupAuth(HttpRequest);
@@ -214,9 +216,9 @@ void UDonationAlertsSubsystem::SubscribeCentrifugoChannel_HttpRequestComplete(FH
 			auto ChannelsArray = JsonObject->GetArrayField(DataFieldName);
 
 			bool bGotToken = false;
-			if (ChannelsArray.Num() > 0)
+			for (auto& Channel : ChannelsArray)
 			{
-				auto ChannelObject = ChannelsArray[0]->AsObject();
+				auto ChannelObject = Channel->AsObject();
 				if (ChannelObject.IsValid())
 				{
 					ConnectDonationChannel(ChannelObject->GetStringField("channel"), ChannelObject->GetStringField("token"));
@@ -419,12 +421,15 @@ void UDonationAlertsSubsystem::ParseCentrifugoMessage(const FString& InMessage)
 				ClientId = ResultJson->GetStringField(ClientFieldName);
 
 				// We've connected to server, so now we should join a channel
-				FString UserChannel = FString::Printf(TEXT("$alerts:donation_%d"), UserProfile.id);
-				SubscribeCentrifugoChannel(UserChannel);
+				FString AlertsChannel = FString::Printf(TEXT("$alerts:donation_%d"), UserProfile.id);
+				FString PollsChannel = FString::Printf(TEXT("$polls:poll_%d"), UserProfile.id);
+				FString GoalsChannel = FString::Printf(TEXT("$goals:goal_%d"), UserProfile.id);
+
+				SubscribeCentrifugoChannel({AlertsChannel, PollsChannel, GoalsChannel});
 			}
 			else if (ResultJson->HasTypedField<EJson::String>(ChannelFieldName))
 			{
-				// We're assuming that only one channel can be ever used for now (donations)
+				// That's the matryoshka data structure
 				if (auto DataJson = ResultJson->GetObjectField(DataFieldName))
 				{
 					// Now get result.data.data
@@ -432,15 +437,48 @@ void UDonationAlertsSubsystem::ParseCentrifugoMessage(const FString& InMessage)
 					{
 						auto SecondLayerDataJson = DataJson->GetObjectField(DataFieldName);
 
-						FDonationAlertsEvent DAEvent;
-						if (!FJsonObjectConverter::JsonObjectToUStruct(SecondLayerDataJson.ToSharedRef(), FDonationAlertsEvent::StaticStruct(), &DAEvent))
+						// Select channel now
+						FString ChannelName = ResultJson->GetStringField(ChannelFieldName);
+						if (ChannelName.StartsWith(TEXT("$alerts")))
 						{
-							UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert data to struct"), *VA_FUNC_LINE);
-							return;
-						}
+							FDonationAlertsDonationEvent DAEvent;
+							if (!FJsonObjectConverter::JsonObjectToUStruct(SecondLayerDataJson.ToSharedRef(), FDonationAlertsDonationEvent::StaticStruct(), &DAEvent))
+							{
+								UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert data to struct"), *VA_FUNC_LINE);
+								return;
+							}
 
-						DonationAlertsEventHappened.Broadcast(DAEvent);
-						DonationAlertsEventHappenedStatic.Broadcast(DAEvent);
+							OnDonationEvent.Broadcast(DAEvent);
+							OnDonationEventStatic.Broadcast(DAEvent);
+						}
+						else if (ChannelName.StartsWith(TEXT("$polls")))
+						{
+							FDonationAlertsPollEvent DAEvent;
+							if (!FJsonObjectConverter::JsonObjectToUStruct(SecondLayerDataJson.ToSharedRef(), FDonationAlertsPollEvent::StaticStruct(), &DAEvent))
+							{
+								UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert data to struct"), *VA_FUNC_LINE);
+								return;
+							}
+
+							OnPollEvent.Broadcast(DAEvent);
+							OnPollEventStatic.Broadcast(DAEvent);
+						}
+						else if (ChannelName.StartsWith(TEXT("$goals")))
+						{
+							FDonationAlertsGoalEvent DAEvent;
+							if (!FJsonObjectConverter::JsonObjectToUStruct(SecondLayerDataJson.ToSharedRef(), FDonationAlertsGoalEvent::StaticStruct(), &DAEvent))
+							{
+								UE_LOG(LogDonationAlerts, Error, TEXT("%s: Can't convert data to struct"), *VA_FUNC_LINE);
+								return;
+							}
+
+							OnGoalEvent.Broadcast(DAEvent);
+							OnGoalEventStatic.Broadcast(DAEvent);
+						}
+						else
+						{
+							UE_LOG(LogDonationAlerts, Warning, TEXT("%s: Unknown channel: %s"), *VA_FUNC_LINE, *ChannelName);
+						}
 					}
 				}
 			}

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "DonationAlertsTypes.h"
+
 #include "Blueprint/UserWidget.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Http.h"
@@ -15,95 +17,17 @@
 class FJsonObject;
 struct FGuid;
 
-USTRUCT(BlueprintType)
-struct DONATIONALERTS_API FDonationAlertsAuthToken
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "AuthToken")
-	FString access_token;
-
-	UPROPERTY(BlueprintReadWrite, Category = "AuthToken")
-	int64 expires_in;
-
-	UPROPERTY(BlueprintReadWrite, Category = "AuthToken")
-	FString refresh_token;
-
-public:
-	FDonationAlertsAuthToken()
-		: expires_in(0){};
-
-	bool IsValid() const { return !access_token.IsEmpty() && !refresh_token.IsEmpty(); }
-};
-
-USTRUCT(BlueprintType)
-struct DONATIONALERTS_API FDonationAlertsUserProfile
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "UserProfile")
-	int32 id;
-
-	UPROPERTY(BlueprintReadWrite, Category = "UserProfile")
-	FString socket_connection_token;
-
-public:
-	FDonationAlertsUserProfile()
-		: id(0){};
-};
-
-/** Verb used by the request */
-UENUM(BlueprintType)
-enum class ERequestVerb : uint8
-{
-	GET,
-	POST
-};
-
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFetchTokenSuccess, const FDonationAlertsAuthToken&, AuthToken);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRequestError, int32, StatusCode, const FString&, ErrorMessage);
 
-USTRUCT(BlueprintType)
-struct DONATIONALERTS_API FDonationAlertsEvent
-{
-	GENERATED_BODY()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDADonationEvent, const FDonationAlertsDonationEvent&, DonationEvent);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDADonationEventStatic, FDonationAlertsDonationEvent);
 
-	/** Type of the alert. Always donation in this case */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	FString name;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDAGoalEvent, const FDonationAlertsGoalEvent&, GoalEvent);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDAGoalEventStatic, FDonationAlertsGoalEvent);
 
-	/** The name of the user who sent the donation and the alert */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	FString username;
-
-	/** The message type. The possible values are text for a text messages and audio for an audio messages */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	FString message_type;
-
-	/** The message sent along with the donation and the alert */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	FString message;
-
-	/** The donation amount */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	int32 amount;
-
-	/** The currency code (ISO 4217 formatted) */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	FString currency;
-
-	/** A flag indicating whether the alert was shown in the streamer's widget */
-	UPROPERTY(BlueprintReadWrite, Category = "Event")
-	bool is_shown;
-
-public:
-	FDonationAlertsEvent()
-		: amount(0)
-		, is_shown(false){};
-};
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDonationAlertEvent, const FDonationAlertsEvent&, DonationAlertsEvent);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDonationAlertEventStatic, FDonationAlertsEvent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDAPollEvent, const FDonationAlertsPollEvent&, PollEvent);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDAPollEventStatic, FDonationAlertsPollEvent);
 
 UCLASS()
 class DONATIONALERTS_API UDonationAlertsSubsystem : public UGameInstanceSubsystem
@@ -139,7 +63,7 @@ protected:
 	void FetchUserProfile();
 
 	/** Subscribe the channel and obtains connection token */
-	void SubscribeCentrifugoChannel(const FString& InChannel);
+	void SubscribeCentrifugoChannel(const TArray<FString>& InChannels);
 
 protected:
 	void SendCustomAlert_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FOnRequestError ErrorCallback);
@@ -176,10 +100,18 @@ public:
 
 	/** Event occured when the Donation Alerts event occured (e.g. donation happend on stream) */
 	UPROPERTY(BlueprintAssignable, Category = "DonationAlerts")
-	FOnDonationAlertEvent DonationAlertsEventHappened;
+	FOnDADonationEvent OnDonationEvent;
+	FOnDADonationEventStatic OnDonationEventStatic;
 
-	/** Callback for login completed event */
-	FOnDonationAlertEventStatic DonationAlertsEventHappenedStatic;
+	/** Event occured when the goal on stream achieved */
+	UPROPERTY(BlueprintAssignable, Category = "DonationAlerts")
+	FOnDAGoalEvent OnGoalEvent;
+	FOnDAGoalEventStatic OnGoalEventStatic;
+
+	/** Event occured when the poll on stream finished */
+	UPROPERTY(BlueprintAssignable, Category = "DonationAlerts")
+	FOnDAPollEvent OnPollEvent;
+	FOnDAPollEventStatic OnPollEventStatic;
 
 protected:
 	/** Cached AppId */
