@@ -18,10 +18,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "DonationAlerts Settings")
 	FString AppId;
 
-	/** Check https://www.donationalerts.com/apidoc#authorization__implicit for details */
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "DonationAlerts Settings")
-	FString AppClientSecret;
-
 	/** AuthCode to AccessToken exchange url https://www.donationalerts.com/apidoc#authorization__authorization_code__getting_access_token */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "DonationAlerts Settings")
 	FString AuthTokenExchangeURI;

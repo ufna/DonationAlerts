@@ -354,11 +354,10 @@ void UDonationAlertsSubsystem::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
 FString UDonationAlertsSubsystem::GetAuthUrl() const
 {
 	const UDonationAlertsSettings* Settings = FDonationAlertsModule::Get().GetSettings();
-	return FString::Printf(TEXT("%s/oauth/authorize?client_id=%s&response_type=token&scope=%s&client_secret=%s"),
+	return FString::Printf(TEXT("%s/oauth/authorize?client_id=%s&response_type=token&scope=%s"),
 		*DonationAlertsEndpoint,
 		*Settings->AppId,
-		*FGenericPlatformHttp::UrlEncode(TEXT("oauth-user-show oauth-donation-subscribe oauth-donation-index oauth-custom_alert-store")),
-		*Settings->AppClientSecret);
+		*FGenericPlatformHttp::UrlEncode(TEXT("oauth-user-show oauth-donation-subscribe oauth-goal-subscribe oauth-poll-subscribe oauth-donation-index oauth-custom_alert-store")));
 }
 
 FDonationAlertsAuthToken UDonationAlertsSubsystem::GetAuthToken() const

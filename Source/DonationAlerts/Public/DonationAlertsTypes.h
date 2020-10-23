@@ -101,15 +101,15 @@ struct DONATIONALERTS_API FDonationAlertsGoalEvent
 {
 	GENERATED_BODY()
 
-	/** The unique event identifier */
+	/** The unique donation goal identifier */
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	int32 id;
 
-	/**  */
+	/** A flag indicating whether the donation goal is in progress or not */
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	bool is_active;
 
-	/**  */
+	/** The donation goal title */
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	FString title;
 
@@ -117,15 +117,15 @@ struct DONATIONALERTS_API FDonationAlertsGoalEvent
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	FString currency;
 
-	/**  */
+	/** Starting amount of the donation goal */
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	int32 start_amount;
 
-	/**  */
+	/** Currently raised amount including the start_amount value */
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	int32 raised_amount;
 
-	/**  */
+	/** Goal amount of the donation goal */
 	UPROPERTY(BlueprintReadWrite, Category = "Goal Event")
 	int32 goal_amount;
 
@@ -147,23 +147,25 @@ struct DONATIONALERTS_API FDonationAlertsPollOption
 {
 	GENERATED_BODY()
 
-	/**  */
+	/** The unique poll option identifier */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Option")
 	int32 id;
 
-	/**  */
+	/** The poll option title */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Option")
 	FString title;
 
-	/**  */
+	/** The absolute value of poll option. Depending on poll type the value may contain number or sum of donations */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Option")
 	int32 amount_value;
 
-	/**  */
+	/** The percent value of poll option relative other poll options */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Option")
 	int32 amount_percent;
 
-	/**  */
+	/** A flag indicating whether the poll option is the poll winner or not.
+	 * Please note that poll may have multiple winners if maximium amount_value value is shared by several poll options 
+	 */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Option")
 	bool is_winner;
 
@@ -180,23 +182,26 @@ struct DONATIONALERTS_API FDonationAlertsPollEvent
 {
 	GENERATED_BODY()
 
-	/** The unique event identifier */
+	/** The unique poll identifier */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Event")
 	int32 id;
 
-	/**  */
+	/** A flag indicating whether the poll is in progress or not */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Event")
 	bool is_active;
 
-	/**  */
+	/** The poll title */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Event")
 	FString title;
 
-	/**  */
+	/** Type of the poll that defines how poll winner is calculated:
+	 * count - finds winner by the most number of donations;
+	 * sum - finds winner by the most sum of donations;
+	 */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Event")
 	FString type;
 
-	/** */
+	/** Array of available poll options represented as Poll Option resource */
 	UPROPERTY(BlueprintReadWrite, Category = "Poll Event")
 	TArray<FDonationAlertsPollOption> options;
 
