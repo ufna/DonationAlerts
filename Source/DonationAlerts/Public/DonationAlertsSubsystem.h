@@ -79,10 +79,10 @@ protected:
 	void SaveData();
 
 	/** Create http request and add API meta */
-	TSharedRef<IHttpRequest> CreateHttpRequest(const FString& Url, const FString& BodyContent = TEXT(""), ERequestVerb Verb = ERequestVerb::POST);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateHttpRequest(const FString& Url, const FString& BodyContent = TEXT(""), ERequestVerb Verb = ERequestVerb::POST);
 
 	/** Setup auth with bearer token */
-	void SetupAuth(TSharedRef<IHttpRequest> HttpRequest);
+	void SetupAuth(TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest);
 
 protected:
 	static const FString DonationAlertsEndpoint;

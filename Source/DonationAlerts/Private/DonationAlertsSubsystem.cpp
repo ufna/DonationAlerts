@@ -99,7 +99,7 @@ void UDonationAlertsSubsystem::SendCustomAlert(const FOnRequestError& ErrorCallb
 	if (!SoundUrl.IsEmpty())
 		AlertParams += FString::Printf(TEXT("&sound_url=%s"), *FGenericPlatformHttp::UrlEncode(SoundUrl));
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url + AlertParams);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = CreateHttpRequest(Url + AlertParams);
 	SetupAuth(HttpRequest);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsSubsystem::SendCustomAlert_HttpRequestComplete, ErrorCallback);
 	HttpRequest->ProcessRequest();
@@ -109,7 +109,7 @@ void UDonationAlertsSubsystem::FetchUserProfile()
 {
 	FString Url = FString::Printf(TEXT("%s/user/oauth"), *DonationAlertsApiEndpoint);
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url, FString(), ERequestVerb::GET);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = CreateHttpRequest(Url, FString(), ERequestVerb::GET);
 	SetupAuth(HttpRequest);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsSubsystem::FetchUserProfile_HttpRequestComplete);
 	HttpRequest->ProcessRequest();
@@ -132,7 +132,7 @@ void UDonationAlertsSubsystem::SubscribeCentrifugoChannel(const TArray<FString>&
 	FString Url = FString::Printf(TEXT("%s/centrifuge/subscribe"), *DonationAlertsApiEndpoint);
 	FString PostContent = FString::Printf(TEXT("{\"channels\":[%s], \"client\":\"%s\"}"), *ChannelsStr, *ClientId);
 
-	TSharedRef<IHttpRequest> HttpRequest = CreateHttpRequest(Url, PostContent);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = CreateHttpRequest(Url, PostContent);
 	SetupAuth(HttpRequest);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UDonationAlertsSubsystem::SubscribeCentrifugoChannel_HttpRequestComplete);
 	HttpRequest->ProcessRequest();
@@ -309,9 +309,9 @@ void UDonationAlertsSubsystem::SaveData()
 	UDonationAlertsSave::Save(FDonationAlertsSaveData(AuthToken));
 }
 
-TSharedRef<IHttpRequest> UDonationAlertsSubsystem::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UDonationAlertsSubsystem::CreateHttpRequest(const FString& Url, const FString& BodyContent, ERequestVerb Verb)
 {
-	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 	HttpRequest->SetURL(Url);
 
@@ -346,7 +346,7 @@ TSharedRef<IHttpRequest> UDonationAlertsSubsystem::CreateHttpRequest(const FStri
 	return HttpRequest;
 }
 
-void UDonationAlertsSubsystem::SetupAuth(TSharedRef<IHttpRequest> HttpRequest)
+void UDonationAlertsSubsystem::SetupAuth(TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest)
 {
 	HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *AuthToken.access_token));
 }
